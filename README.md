@@ -18,6 +18,10 @@ A Paseo plugin that folds noisy user messages into compact cards.
   certainly pasted output. The card shows the first three lines and a "more lines" bar with
   Show all and Copy. ANSI colour codes are stripped and the bar says so.
 
+Card bodies render a small markdown subset of their own, since Paseo exposes no markdown component
+to plugins: paragraphs, headings, bullet and numbered lists, fenced code, and inline code, bold and
+italic. Anything else stays literal.
+
 Client-only. Nothing runs on the daemon and nothing is stored.
 
 ## Install

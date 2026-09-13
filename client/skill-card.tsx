@@ -3,6 +3,7 @@ import { Icon, copyText, useToast } from "@getpaseo/plugin/client/react-native";
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { z } from "zod";
+import { Markdown } from "./markdown";
 
 export const skillCardSchema = z.object({
   name: z.string(),
@@ -43,12 +44,6 @@ export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<Skill
         borderTopColor: theme.colors.border,
         padding: layout.compact ? 12 : 16,
         backgroundColor: theme.colors.surface0,
-      },
-      bodyText: {
-        color: theme.colors.foreground,
-        fontFamily: "monospace",
-        fontSize: 12,
-        lineHeight: 18,
       },
       footer: {
         flexDirection: "row" as const,
@@ -100,9 +95,7 @@ export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<Skill
       {hasBody && open ? (
         <>
           <View style={styles.body}>
-            <Text selectable style={styles.bodyText}>
-              {item.data.body}
-            </Text>
+            <Markdown text={item.data.body} theme={theme} compact={layout.compact} />
           </View>
           <View style={styles.footer}>
             <Pressable accessibilityRole="button" onPress={copyBody}>

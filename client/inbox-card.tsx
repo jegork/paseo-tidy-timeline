@@ -3,6 +3,7 @@ import { Icon, copyText, useToast } from "@getpaseo/plugin/client/react-native";
 import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { z } from "zod";
+import { Markdown } from "./markdown";
 
 export const inboxCardSchema = z.object({
   messages: z.array(z.object({ from: z.string(), body: z.string() })),
@@ -57,7 +58,6 @@ export function InboxCard({ item, theme, layout }: PluginTimelineItemProps<Inbox
         paddingBottom: 12,
         paddingLeft: 36,
       },
-      bodyText: { color: theme.colors.foreground, fontSize: 13, lineHeight: 20 },
       copy: { color: theme.colors.accent, fontSize: 12, paddingTop: 8 },
     }),
     [theme, layout.compact],
@@ -106,9 +106,7 @@ export function InboxCard({ item, theme, layout }: PluginTimelineItemProps<Inbox
             </Pressable>
             {expanded ? (
               <View style={styles.body}>
-                <Text selectable style={styles.bodyText}>
-                  {message.body}
-                </Text>
+                <Markdown text={message.body} theme={theme} compact={layout.compact} />
                 <Pressable accessibilityRole="button" onPress={() => copy(message.body)}>
                   <Text style={styles.copy}>Copy</Text>
                 </Pressable>
