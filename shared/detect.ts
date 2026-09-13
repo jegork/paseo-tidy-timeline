@@ -86,20 +86,3 @@ export function detectLongPaste(text: string): LongPaste | null {
     hadAnsi,
   };
 }
-
-export type ToolMount = {
-  tools: string[];
-};
-
-// omp announces every mcp tool an extension mounts as an info notification
-const TOOL_MOUNT = /^xd:\/\/: mounted (.+)$/;
-
-export function parseToolMount(message: string): ToolMount | null {
-  const match = TOOL_MOUNT.exec(message.trim());
-  if (match === null) return null;
-  const tools = (match[1] ?? "")
-    .split(",")
-    .map((tool) => tool.trim())
-    .filter((tool) => tool !== "");
-  return tools.length === 0 ? null : { tools };
-}

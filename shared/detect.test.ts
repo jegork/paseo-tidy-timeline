@@ -3,7 +3,6 @@ import {
   detectLongPaste,
   parseSkillBody,
   parseSkillInvocation,
-  parseToolMount,
   stripAnsi,
 } from "./detect";
 
@@ -112,21 +111,5 @@ describe("parseSkillBody", () => {
 
   test("leaves an ordinary reply alone", () => {
     expect(parseSkillBody("Bossman, I'll start with the hot spots.")).toBeNull();
-  });
-});
-
-describe("parseToolMount", () => {
-  test("lists the tools an omp extension mounted", () => {
-    expect(
-      parseToolMount("xd://: mounted mcp__agentmemory_memory_audit, mcp__agentmemory_memory_export"),
-    ).toEqual({ tools: ["mcp__agentmemory_memory_audit", "mcp__agentmemory_memory_export"] });
-    expect(parseToolMount("xd://: mounted mcp__codegraph_explore")).toEqual({
-      tools: ["mcp__codegraph_explore"],
-    });
-  });
-
-  test("leaves other notifications alone", () => {
-    expect(parseToolMount("Rate limited, retrying in 30s")).toBeNull();
-    expect(parseToolMount("xd://: mounted ")).toBeNull();
   });
 });

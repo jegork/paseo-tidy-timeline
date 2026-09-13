@@ -1,13 +1,7 @@
 import type { PluginClientContext } from "@getpaseo/plugin/client";
-import { MountCard, mountCardSchema } from "./client/mount-card";
 import { PasteCard, pasteCardSchema } from "./client/paste-card";
 import { SkillCard, skillCardSchema } from "./client/skill-card";
-import {
-  detectLongPaste,
-  parseSkillBody,
-  parseSkillInvocation,
-  parseToolMount,
-} from "./shared/detect";
+import { detectLongPaste, parseSkillBody, parseSkillInvocation } from "./shared/detect";
 
 export default function contribute(client: PluginClientContext) {
   client.addTimelineTransformer({
@@ -46,17 +40,7 @@ export default function contribute(client: PluginClientContext) {
       };
     },
   });
-  client.addTimelineTransformer({
-    id: "tidy-notification",
-    query: { itemType: "notification" },
-    transform({ item }) {
-      const mount = parseToolMount(item.message);
-      if (mount === null) return undefined;
-      return { items: [{ type: "plugin", kind: "mount-card", version: 1, data: mount }] };
-    },
-  });
   client.addTimelineRenderer({ kind: "skill-card", version: 1, schema: skillCardSchema, Component: SkillCard });
   client.addTimelineRenderer({ kind: "paste-card", version: 1, schema: pasteCardSchema, Component: PasteCard });
-  client.addTimelineRenderer({ kind: "mount-card", version: 1, schema: mountCardSchema, Component: MountCard });
   return () => {};
 }
