@@ -8,6 +8,8 @@ export const skillCardSchema = z.object({
   name: z.string(),
   args: z.string(),
   body: z.string(),
+  /** which side of the thread the source row sat on */
+  origin: z.enum(["user", "assistant"]),
 });
 
 type SkillCardData = z.output<typeof skillCardSchema>;
@@ -18,7 +20,7 @@ export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<Skill
   const styles = useMemo(
     () => ({
       card: {
-        alignSelf: "flex-end" as const,
+        alignSelf: (item.data.origin === "user" ? "flex-end" : "flex-start") as "flex-end" | "flex-start",
         maxWidth: "100%" as const,
         borderRadius: 12,
         borderWidth: 1,
@@ -59,7 +61,7 @@ export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<Skill
       },
       action: { color: theme.colors.accent, fontSize: 12 },
     }),
-    [theme, layout.compact],
+    [theme, layout.compact, item.data.origin],
   );
 
   async function copyBody() {

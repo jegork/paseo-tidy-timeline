@@ -15,6 +15,23 @@ const SKILL_LINE = /^\/skill:([A-Za-z0-9_.-]+)(?:[ \t]+(.*))?$/;
 const SKILL_MARKER =
   /^\[IMPORTANT: User invoked the "([^"]+)" skill; follow its instructions\. Full skill below\.\]$/;
 
+export type SkillBody = {
+  name: string;
+  body: string;
+};
+
+/**
+ * Paseo's omp mapper emits the injected skill as its own assistant row whose
+ * text starts with the marker, separate from the `/skill:` user bubble. The
+ * marker must be the first line: a reply that merely quotes it is left alone.
+ */
+export function parseSkillBody(text: string): SkillBody | null {
+  const [first = "", ...rest] = text.split("\n");
+  const marker = SKILL_MARKER.exec(first);
+  if (marker === null) return null;
+  return { name: marker[1] ?? "", body: rest.join("\n").trim() };
+}
+
 export function parseSkillInvocation(text: string): SkillInvocation | null {
   const lines = text.split("\n");
   const command = SKILL_LINE.exec(lines[0] ?? "");
@@ -68,4 +85,21 @@ export function detectLongPaste(text: string): LongPaste | null {
     lineCount: lines.length,
     hadAnsi,
   };
+}
+
+export type ToolMount = {
+  tools: string[];
+};
+
+// omp announces every mcp tool an extension mounts as an info notification
+const TOOL_MOUNT = /^xd:\/\/: mounted (.+)$/;
+
+export function parseToolMount(message: string): ToolMount | null {
+  const match = TOOL_MOUNT.exec(message.trim());
+  if (match === null) return null;
+  const tools = (match[1] ?? "")
+    .split(",")
+    .map((tool) => tool.trim())
+    .filter((tool) => tool !== "");
+  return tools.length === 0 ? null : { tools };
 }

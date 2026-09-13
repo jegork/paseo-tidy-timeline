@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { detectLongPaste, parseSkillInvocation, stripAnsi } from "./detect";
+import {
+  detectLongPaste,
+  parseSkillBody,
+  parseSkillInvocation,
+  parseToolMount,
+  stripAnsi,
+} from "./detect";
 
 const ESC = "\x1b";
 
@@ -85,5 +91,42 @@ describe("detectLongPaste", () => {
     expect(paste?.hadAnsi).toBe(true);
     expect(paste?.preview).toBe("ERR failed\nERR failed\nERR failed");
     expect(paste?.text).not.toContain(ESC);
+  });
+});
+
+describe("parseSkillBody", () => {
+  test("reads the skill omp injects as an assistant row", () => {
+    const text =
+      '[IMPORTANT: User invoked the "improve-codebase-architecture" skill; follow its instructions. Full skill below.]\n\n# Improve Codebase Architecture\n\nSurface friction.';
+    expect(parseSkillBody(text)).toEqual({
+      name: "improve-codebase-architecture",
+      body: "# Improve Codebase Architecture\n\nSurface friction.",
+    });
+  });
+
+  test("leaves a reply that quotes the marker later on alone", () => {
+    expect(
+      parseSkillBody('As the marker said:\n[IMPORTANT: User invoked the "x" skill; follow its instructions. Full skill below.]'),
+    ).toBeNull();
+  });
+
+  test("leaves an ordinary reply alone", () => {
+    expect(parseSkillBody("Bossman, I'll start with the hot spots.")).toBeNull();
+  });
+});
+
+describe("parseToolMount", () => {
+  test("lists the tools an omp extension mounted", () => {
+    expect(
+      parseToolMount("xd://: mounted mcp__agentmemory_memory_audit, mcp__agentmemory_memory_export"),
+    ).toEqual({ tools: ["mcp__agentmemory_memory_audit", "mcp__agentmemory_memory_export"] });
+    expect(parseToolMount("xd://: mounted mcp__codegraph_explore")).toEqual({
+      tools: ["mcp__codegraph_explore"],
+    });
+  });
+
+  test("leaves other notifications alone", () => {
+    expect(parseToolMount("Rate limited, retrying in 30s")).toBeNull();
+    expect(parseToolMount("xd://: mounted ")).toBeNull();
   });
 });
