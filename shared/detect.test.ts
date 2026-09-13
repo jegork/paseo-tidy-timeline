@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   detectLongPaste,
+  parseIrcInbox,
   parseSkillBody,
   parseSkillInvocation,
   stripAnsi,
@@ -111,5 +112,51 @@ describe("parseSkillBody", () => {
 
   test("leaves an ordinary reply alone", () => {
     expect(parseSkillBody("Bossman, I'll start with the hot spots.")).toBeNull();
+  });
+});
+
+const IRC_ONE = `<irc>
+Incoming IRC message from agent ConsultationDepth:
+Best candidate: replace hidden facade-global synchronization.
+Second line of evidence.
+Sent while waiting/working. Active interruptible wait stopped early for immediate reading.
+If response expected, reply via hub (op: "send", to: "ConsultationDepth"); may finish current step first. No one replies on your behalf.
+</irc>`;
+
+const IRC_TWO = `<irc>
+Incoming IRC message from agent SessionDepth:
+Additional evidence: timerPolling.ts:1-28.
+Sent while waiting/working. Active interruptible wait stopped early for immediate reading.
+If response expected, reply via hub (op: "send", to: "SessionDepth"); may finish current step first. No one replies on your behalf.
+</irc>`;
+
+describe("parseIrcInbox", () => {
+  test("extracts sender and body and drops the delivery boilerplate", () => {
+    expect(parseIrcInbox(IRC_ONE)).toEqual({
+      messages: [
+        {
+          from: "ConsultationDepth",
+          body: "Best candidate: replace hidden facade-global synchronization.\nSecond line of evidence.",
+        },
+      ],
+    });
+  });
+
+  test("keeps every block of a batch in order, even when glued together", () => {
+    const inbox = parseIrcInbox(`${IRC_ONE}${IRC_TWO}`);
+    expect(inbox?.messages.map((message) => message.from)).toEqual([
+      "ConsultationDepth",
+      "SessionDepth",
+    ]);
+    expect(inbox?.messages[1]?.body).toBe("Additional evidence: timerPolling.ts:1-28.");
+  });
+
+  test("leaves a reply that discusses the messages alongside them alone", () => {
+    expect(parseIrcInbox(`${IRC_ONE}\n\nBossman, both agents agree.`)).toBeNull();
+    expect(parseIrcInbox("Bossman, nothing arrived.")).toBeNull();
+  });
+
+  test("leaves a block without a sender line alone", () => {
+    expect(parseIrcInbox("<irc>\nhello\n</irc>")).toBeNull();
   });
 });

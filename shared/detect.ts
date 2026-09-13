@@ -86,3 +86,39 @@ export function detectLongPaste(text: string): LongPaste | null {
     hadAnsi,
   };
 }
+
+export type IrcMessage = {
+  from: string;
+  body: string;
+};
+
+export type IrcInbox = {
+  messages: IrcMessage[];
+};
+
+// omp's hub delivers subagent replies into the parent as one assistant row
+// made only of <irc> blocks, each with a sender line and delivery boilerplate
+const IRC_BLOCK = /<irc>\s*([\s\S]*?)\s*<\/irc>/g;
+const IRC_FROM = /^Incoming IRC message from agent ([^\s:]+):\s*/;
+const IRC_TRAILER = [
+  /^Sent while waiting\/working\..*$/m,
+  /^If response expected, reply via hub .*$/m,
+];
+
+export function parseIrcInbox(text: string): IrcInbox | null {
+  const messages: IrcMessage[] = [];
+  let consumed = "";
+  for (const match of text.matchAll(IRC_BLOCK)) {
+    consumed += match[0];
+    const inner = match[1] ?? "";
+    const from = IRC_FROM.exec(inner);
+    if (from === null) return null;
+    let body = inner.slice(from[0].length);
+    for (const trailer of IRC_TRAILER) body = body.replace(trailer, "");
+    messages.push({ from: from[1] ?? "", body: body.trim() });
+  }
+  if (messages.length === 0) return null;
+  // anything outside the blocks means the model also said something; leave it
+  if (text.replace(IRC_BLOCK, "").trim() !== "") return null;
+  return { messages };
+}

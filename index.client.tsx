@@ -1,7 +1,13 @@
 import type { PluginClientContext } from "@getpaseo/plugin/client";
+import { InboxCard, inboxCardSchema } from "./client/inbox-card";
 import { PasteCard, pasteCardSchema } from "./client/paste-card";
 import { SkillCard, skillCardSchema } from "./client/skill-card";
-import { detectLongPaste, parseSkillBody, parseSkillInvocation } from "./shared/detect";
+import {
+  detectLongPaste,
+  parseIrcInbox,
+  parseSkillBody,
+  parseSkillInvocation,
+} from "./shared/detect";
 
 export default function contribute(client: PluginClientContext) {
   client.addTimelineTransformer({
@@ -26,6 +32,10 @@ export default function contribute(client: PluginClientContext) {
     id: "tidy-assistant-message",
     query: { itemType: "assistant_message" },
     transform({ item }) {
+      const inbox = parseIrcInbox(item.text);
+      if (inbox !== null) {
+        return { items: [{ type: "plugin", kind: "inbox-card", version: 1, data: inbox }] };
+      }
       const skill = parseSkillBody(item.text);
       if (skill === null) return undefined;
       return {
@@ -42,5 +52,6 @@ export default function contribute(client: PluginClientContext) {
   });
   client.addTimelineRenderer({ kind: "skill-card", version: 1, schema: skillCardSchema, Component: SkillCard });
   client.addTimelineRenderer({ kind: "paste-card", version: 1, schema: pasteCardSchema, Component: PasteCard });
+  client.addTimelineRenderer({ kind: "inbox-card", version: 1, schema: inboxCardSchema, Component: InboxCard });
   return () => {};
 }
