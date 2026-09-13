@@ -11,11 +11,23 @@ A Paseo plugin that folds noisy user messages into compact cards.
   `<irc>` blocks. The card lists one collapsed row per message with the sender and a two-line
   preview; tap to read, Copy underneath. The two delivery boilerplate lines are dropped. A reply
   that says anything outside the blocks is left as it is.
+- **Notice card** — omp's `<system-notice>` for a finished background job becomes one line,
+  "Background job X has completed · status · duration · lines", expanding to the result preview.
+  The closing tags and the "full payload at agent://" pointer are dropped.
 - **Paste card** — a user message with 24 or more lines, or 4000 or more characters, is almost
   certainly pasted output. The card shows the first three lines and a "more lines" bar with
   Show all and Copy. ANSI colour codes are stripped and the bar says so.
 
 Client-only. Nothing runs on the daemon and nothing is stored.
+
+## Streamed rows arrive in pieces
+
+Paseo 0.8 splits an assistant message into markdown blocks while it streams and runs transformers
+per block, so an injected row can reach the plugin as fragments. Whole rows get the full cards
+above. Fragments degrade rather than break: a skill marker on its own becomes a header-only skill
+card, an `<irc>` opener becomes "Message from X", trailer lines and closing tags are hidden, and a
+notice header becomes a banner. The message paragraphs in between stay as ordinary markdown. A
+reload of the agent refetches whole rows and restores the full cards.
 
 ```bash
 paseo plugin install /absolute/path/to/paseo-tidy-timeline

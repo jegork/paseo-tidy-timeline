@@ -4,23 +4,24 @@ import { useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { z } from "zod";
 
-export const skillCardSchema = z.object({
-  name: z.string(),
-  args: z.string(),
+export const bannerCardSchema = z.object({
+  icon: z.string(),
+  title: z.string(),
+  meta: z.array(z.string()),
   body: z.string(),
-  /** which side of the thread the source row sat on */
-  origin: z.enum(["user", "assistant"]),
 });
 
-type SkillCardData = z.output<typeof skillCardSchema>;
+type BannerCardData = z.output<typeof bannerCardSchema>;
 
-export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<SkillCardData>) {
+/** One line with an icon and metadata; expands to a monospace body when there is one. */
+export function BannerCard({ item, theme, layout }: PluginTimelineItemProps<BannerCardData>) {
   const [open, setOpen] = useState(false);
   const toast = useToast();
+  const hasBody = item.data.body !== "";
   const styles = useMemo(
     () => ({
       card: {
-        alignSelf: (item.data.origin === "user" ? "flex-end" : "flex-start") as "flex-end" | "flex-start",
+        alignSelf: "flex-start" as const,
         maxWidth: "100%" as const,
         borderRadius: 12,
         borderWidth: 1,
@@ -35,25 +36,18 @@ export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<Skill
         paddingHorizontal: 12,
         paddingVertical: 10,
       },
-      label: { color: theme.colors.foregroundMuted, fontSize: 12 },
-      name: { color: theme.colors.foreground, fontSize: 14, fontWeight: "600" as const },
-      args: { color: theme.colors.foreground, fontSize: 13, fontFamily: "monospace", flexShrink: 1 },
+      title: { color: theme.colors.foreground, fontSize: 13, fontWeight: "600" as const },
+      meta: { color: theme.colors.foregroundMuted, fontSize: 12 },
       body: {
         borderTopWidth: 1,
         borderTopColor: theme.colors.border,
         padding: layout.compact ? 12 : 16,
         backgroundColor: theme.colors.surface0,
       },
-      bodyText: {
-        color: theme.colors.foreground,
-        fontFamily: "monospace",
-        fontSize: 12,
-        lineHeight: 18,
-      },
+      bodyText: { color: theme.colors.foreground, fontFamily: "monospace", fontSize: 12, lineHeight: 18 },
       footer: {
         flexDirection: "row" as const,
         justifyContent: "flex-end" as const,
-        gap: 16,
         paddingHorizontal: 12,
         paddingVertical: 8,
         borderTopWidth: 1,
@@ -61,42 +55,46 @@ export function SkillCard({ item, theme, layout }: PluginTimelineItemProps<Skill
       },
       action: { color: theme.colors.accent, fontSize: 12 },
     }),
-    [theme, layout.compact, item.data.origin],
+    [theme, layout.compact],
   );
 
   async function copyBody() {
     try {
       await copyText(item.data.body);
-      toast.show("Skill copied", { variant: "success" });
+      toast.show("Copied", { variant: "success" });
     } catch {
       toast.error("Could not copy. Select the text and use Copy.");
     }
   }
 
-  const hasBody = item.data.body !== "";
-  const lineCount = item.data.body.split("\n").length;
+  const header = (
+    <>
+      {hasBody ? (
+        <Icon name={open ? "ChevronDown" : "ChevronRight"} size={16} color={theme.colors.foregroundMuted} />
+      ) : null}
+      <Icon name={item.data.icon} size={16} color={theme.colors.accent} />
+      <Text style={styles.title}>{item.data.title}</Text>
+      {item.data.meta.map((entry) => (
+        <Text key={entry} style={styles.meta}>
+          {entry}
+        </Text>
+      ))}
+    </>
+  );
   return (
     <View style={styles.card}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${open ? "Collapse" : "Expand"} skill ${item.data.name}`}
-        disabled={!hasBody}
-        onPress={() => setOpen((value) => !value)}
-        style={styles.header}
-      >
-        {hasBody ? (
-          <Icon name={open ? "ChevronDown" : "ChevronRight"} size={16} color={theme.colors.foregroundMuted} />
-        ) : null}
-        <Icon name="Sparkles" size={16} color={theme.colors.accent} />
-        <Text style={styles.label}>Skill</Text>
-        <Text style={styles.name}>{item.data.name}</Text>
-        {item.data.args !== "" ? (
-          <Text style={styles.args} numberOfLines={1}>
-            {item.data.args}
-          </Text>
-        ) : null}
-        {hasBody && !open ? <Text style={styles.label}>{`${lineCount} lines`}</Text> : null}
-      </Pressable>
+      {hasBody ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${open ? "Collapse" : "Expand"} ${item.data.title}`}
+          onPress={() => setOpen((value) => !value)}
+          style={styles.header}
+        >
+          {header}
+        </Pressable>
+      ) : (
+        <View style={styles.header}>{header}</View>
+      )}
       {hasBody && open ? (
         <>
           <View style={styles.body}>

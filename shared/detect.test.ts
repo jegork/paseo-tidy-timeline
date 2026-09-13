@@ -1,9 +1,12 @@
 import { describe, expect, test } from "vitest";
 import {
   detectLongPaste,
+  isSystemNoticeTrailer,
+  parseIrcFragment,
   parseIrcInbox,
   parseSkillBody,
   parseSkillInvocation,
+  parseSystemNotice,
   stripAnsi,
 } from "./detect";
 
@@ -110,6 +113,14 @@ describe("parseSkillBody", () => {
     expect(parseSkillBody(text)).toEqual({ name: "commit", body: "Commit it." });
   });
 
+  test("accepts a block that is only the marker, as paseo 0.8 streams it", () => {
+    expect(
+      parseSkillBody(
+        '[IMPORTANT: User invoked the "commit" skill; follow its instructions. Full skill below.]',
+      ),
+    ).toEqual({ name: "commit", body: "" });
+  });
+
   test("leaves a reply that quotes the marker later on alone", () => {
     expect(
       parseSkillBody('As the marker said:\n[IMPORTANT: User invoked the "x" skill; follow its instructions. Full skill below.]'),
@@ -172,5 +183,81 @@ describe("parseIrcInbox", () => {
 
   test("leaves a block without a sender line alone", () => {
     expect(parseIrcInbox("<irc>\nhello\n</irc>")).toBeNull();
+  });
+});
+
+describe("parseIrcFragment", () => {
+  test("names the sender from an opener block", () => {
+    expect(parseIrcFragment("<irc>\nIncoming IRC message from agent `ConsultationDepth`:")).toEqual({
+      kind: "opener",
+      from: "ConsultationDepth",
+    });
+  });
+
+  test("treats a trailer glued to the next opener as an opener for that sender", () => {
+    const block =
+      'If response expected, reply via `hub` (`op: "send"`, `to: "ConsultationDepth"`); may finish current step first. No one replies on your behalf.\n</irc>[custom_message] <irc>\nIncoming IRC message from agent `InsightDepth`:';
+    expect(parseIrcFragment(block)).toEqual({ kind: "opener", from: "InsightDepth" });
+  });
+
+  test("treats trailer lines and closing tags alone as noise", () => {
+    expect(
+      parseIrcFragment("Sent while waiting/working. Active interruptible wait stopped early for immediate reading."),
+    ).toEqual({ kind: "noise" });
+    expect(parseIrcFragment("</irc>")).toEqual({ kind: "noise" });
+  });
+
+  test("leaves a content paragraph alone", () => {
+    expect(parseIrcFragment("Best candidate: replace hidden facade-global synchronization.")).toBeNull();
+    expect(parseIrcFragment("<irc>\nIncoming IRC message from agent X:\nand then some content")).toBeNull();
+  });
+});
+
+const NOTICE = `<system-notice>
+Background job InsightDepth has completed. Resume your work using the result below.
+<task-result id="InsightDepth" agent="scout" status="completed" duration="1m47s">
+<meta lines="51" size="8.0KB" />
+<preview full-output="agent://InsightDepth">
+{
+"summary": "One supported deepening candidate."
+}
+</preview>
+</task-result>
+</system-notice>`;
+
+describe("parseSystemNotice", () => {
+  test("lifts the job, its metadata and the preview out of the envelope", () => {
+    expect(parseSystemNotice(`[custom_message] ${NOTICE}`)).toEqual({
+      title: "Background job InsightDepth has completed",
+      meta: ["status completed", "duration 1m47s", "lines 51"],
+      body: '{\n"summary": "One supported deepening candidate."\n}',
+    });
+  });
+
+  test("handles the multi-job wording and a header-only block", () => {
+    const head = "<system-notice>\n2 background jobs have completed. Resume your work using the results below.";
+    expect(parseSystemNotice(head)).toEqual({
+      title: "2 background jobs have completed",
+      meta: [],
+      body: "",
+    });
+  });
+
+  test("leaves ordinary replies alone", () => {
+    expect(parseSystemNotice("Bossman, the job finished.")).toBeNull();
+  });
+});
+
+describe("isSystemNoticeTrailer", () => {
+  test("recognises the closing tags and the payload pointer", () => {
+    expect(
+      isSystemNoticeTrailer(
+        "</preview>\n</task-result>\noutput: schema valid; full payload at agent://InsightDepth, fields via agent://InsightDepth?q=.<field>\n</system-notice>",
+      ),
+    ).toBe(true);
+  });
+
+  test("does not swallow content", () => {
+    expect(isSystemNoticeTrailer('"summary": "x"\n</system-notice>')).toBe(false);
   });
 });

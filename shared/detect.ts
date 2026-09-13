@@ -25,9 +25,9 @@ export type SkillBody = {
  * text starts with the marker, separate from the `/skill:` user bubble. The
  * marker must be the first line: a reply that merely quotes it is left alone.
  */
-// paseo 0.8.0 labels rows that omp injected as custom messages; the label is
-// presentation, not content, so every recogniser looks past it
-const CUSTOM_TAG = /^\[custom_message\]\s*/;
+// paseo's history rebuild labels omp's injected rows `[custom_message]`; the
+// label is presentation, not content, so every recogniser looks past it
+const CUSTOM_TAG = /\[custom_message\]\s*/g;
 
 export function stripCustomTag(text: string): string {
   return text.replace(CUSTOM_TAG, "");
@@ -114,8 +114,7 @@ const IRC_TRAILER = [
 ];
 
 export function parseIrcInbox(rawText: string): IrcInbox | null {
-  // a batch carries the tag once per block, not once per row
-  const text = rawText.replace(/\[custom_message\]\s*/g, "");
+  const text = stripCustomTag(rawText);
   const messages: IrcMessage[] = [];
   for (const match of text.matchAll(IRC_BLOCK)) {
     const inner = match[1] ?? "";
@@ -129,4 +128,82 @@ export function parseIrcInbox(rawText: string): IrcInbox | null {
   // anything outside the blocks means the model also said something; leave it
   if (text.replace(IRC_BLOCK, "").trim() !== "") return null;
   return { messages };
+}
+
+/**
+ * Paseo 0.8 splits a streaming assistant message into markdown blocks and
+ * runs transformers per block, so an injected row can arrive as fragments.
+ * These recognisers handle the fragments that carry no content of their own:
+ * an <irc> opener names its sender, everything else is tag and boilerplate.
+ */
+export type IrcFragment = { kind: "opener"; from: string } | { kind: "noise" };
+
+const IRC_FRAGMENT_LINES: RegExp[] = [
+  /^<\/?irc>(<irc>)?$/,
+  /^Sent while waiting\/working\..*$/,
+  /^If response expected, reply via .*$/,
+];
+const IRC_OPENER_LINE = /^Incoming IRC message from agent `?([^\s:`]+)`?:$/;
+
+export function parseIrcFragment(rawText: string): IrcFragment | null {
+  const lines = stripCustomTag(rawText)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+  if (lines.length === 0) return null;
+  let from: string | null = null;
+  for (const line of lines) {
+    const opener = IRC_OPENER_LINE.exec(line);
+    if (opener !== null) {
+      from = opener[1] ?? null;
+      continue;
+    }
+    if (!IRC_FRAGMENT_LINES.some((pattern) => pattern.test(line))) return null;
+  }
+  return from === null ? { kind: "noise" } : { kind: "opener", from };
+}
+
+export type SystemNotice = {
+  title: string;
+  meta: string[];
+  body: string;
+};
+
+// omp reports finished background jobs as a <system-notice> with a task-result
+// envelope; the preview inside is the part worth folding
+const NOTICE_META = /<(?:task-result|meta)\b([^>]*)\/?>/g;
+const NOTICE_TAG_LINE = /^<\/?(?:system-notice|task-result|preview|meta)\b[^>]*>$/;
+
+export function parseSystemNotice(rawText: string): SystemNotice | null {
+  const text = stripCustomTag(rawText).trim();
+  if (!text.startsWith("<system-notice>")) return null;
+  const lines = text.split("\n");
+  const title = (lines.find((line, index) => index > 0 && line.trim() !== "") ?? "")
+    .trim()
+    .replace(/\.\s.*$/, "");
+  const meta: string[] = [];
+  for (const match of text.matchAll(NOTICE_META)) {
+    for (const attr of (match[1] ?? "").matchAll(/(\w+)="([^"]*)"/g)) {
+      if (attr[1] === "duration" || attr[1] === "lines" || attr[1] === "status") {
+        meta.push(`${attr[1]} ${attr[2]}`);
+      }
+    }
+  }
+  const body = lines
+    .slice(lines.findIndex((line) => line.trim() === title || line.trim().startsWith(title)) + 1)
+    .filter((line) => !NOTICE_TAG_LINE.test(line.trim()))
+    .join("\n")
+    .trim();
+  return { title, meta, body };
+}
+
+// closing tags and the "full payload at agent://" pointer that end a notice
+const NOTICE_TRAILER_LINE = /^(?:<\/(?:system-notice|task-result|preview)>|output: .*agent:\/\/.*)$/;
+
+export function isSystemNoticeTrailer(rawText: string): boolean {
+  const lines = stripCustomTag(rawText)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line !== "");
+  return lines.length > 0 && lines.every((line) => NOTICE_TRAILER_LINE.test(line));
 }
