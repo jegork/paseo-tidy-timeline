@@ -1,16 +1,18 @@
+import type { PluginTimelineItem } from "@getpaseo/plugin";
 import type { PluginClientContext } from "@getpaseo/plugin/client";
 import { BannerCard, bannerCardSchema } from "./client/banner-card";
 import { InboxCard, inboxCardSchema } from "./client/inbox-card";
 import { PasteCard, pasteCardSchema } from "./client/paste-card";
+import { ProseCard, proseCardSchema } from "./client/prose-card";
 import { SkillCard, skillCardSchema } from "./client/skill-card";
 import {
   detectLongPaste,
   isSystemNoticeTrailer,
   parseIrcFragment,
-  parseIrcInbox,
   parseSkillBody,
   parseSkillInvocation,
   parseSystemNotice,
+  splitIrcRow,
 } from "./shared/detect";
 
 const HIDE = { items: [] };
@@ -43,9 +45,18 @@ export default function contribute(client: PluginClientContext) {
     id: "tidy-assistant-message",
     query: { itemType: "assistant_message" },
     transform({ item }) {
-      const inbox = parseIrcInbox(item.text);
-      if (inbox !== null) {
-        return { items: [{ type: "plugin", kind: "inbox-card", version: 1, data: inbox }] };
+      // a delivery can share its row with the reply that was streaming; the
+      // reply keeps its place, rendered by the plugin since a transformer
+      // may only emit plugin items
+      const segments = splitIrcRow(item.text);
+      if (segments !== null) {
+        const items: PluginTimelineItem[] = segments.map((segment, index): PluginTimelineItem => {
+          if (segment.kind === "inbox") {
+            return { type: "plugin", id: `inbox-${index}`, kind: "inbox-card", version: 1, data: { messages: segment.messages } };
+          }
+          return { type: "plugin", id: `prose-${index}`, kind: "prose-card", version: 1, data: { text: segment.text } };
+        });
+        return { items };
       }
       const fragment = parseIrcFragment(item.text);
       if (fragment !== null) {
@@ -74,5 +85,6 @@ export default function contribute(client: PluginClientContext) {
   client.addTimelineRenderer({ kind: "paste-card", version: 1, schema: pasteCardSchema, Component: PasteCard });
   client.addTimelineRenderer({ kind: "inbox-card", version: 1, schema: inboxCardSchema, Component: InboxCard });
   client.addTimelineRenderer({ kind: "banner-card", version: 1, schema: bannerCardSchema, Component: BannerCard });
+  client.addTimelineRenderer({ kind: "prose-card", version: 1, schema: proseCardSchema, Component: ProseCard });
   return () => {};
 }

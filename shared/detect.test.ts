@@ -7,6 +7,7 @@ import {
   parseSkillBody,
   parseSkillInvocation,
   parseSystemNotice,
+  splitIrcRow,
   stripAnsi,
 } from "./detect";
 
@@ -259,5 +260,29 @@ describe("isSystemNoticeTrailer", () => {
 
   test("does not swallow content", () => {
     expect(isSystemNoticeTrailer('"summary": "x"\n</system-notice>')).toBe(false);
+  });
+});
+
+describe("splitIrcRow", () => {
+  test("separates a reply from the block glued onto its end, even mid-line", () => {
+    const row = `Results are pending.[custom_message] ${IRC_ONE}`;
+    expect(splitIrcRow(row)).toEqual([
+      { kind: "prose", text: "Results are pending." },
+      { kind: "inbox", messages: [expect.objectContaining({ from: "ConsultationDepth" })] },
+    ]);
+  });
+
+  test("keeps prose on both sides and merges adjacent blocks", () => {
+    const row = `Before.\n\n${IRC_ONE}${IRC_TWO}\n\nAfter.`;
+    const segments = splitIrcRow(row);
+    expect(segments?.map((s) => s.kind)).toEqual(["prose", "inbox", "prose"]);
+    expect(segments?.[1]).toMatchObject({ messages: [{ from: "ConsultationDepth" }, { from: "SessionDepth" }] });
+    expect(segments?.[2]).toEqual({ kind: "prose", text: "After." });
+  });
+
+  test("returns a lone inbox for a pure delivery and null for plain prose", () => {
+    expect(splitIrcRow(IRC_ONE)?.map((s) => s.kind)).toEqual(["inbox"]);
+    expect(splitIrcRow("Bossman, nothing arrived.")).toBeNull();
+    expect(splitIrcRow("<irc>\nno sender line\n</irc>")).toBeNull();
   });
 });

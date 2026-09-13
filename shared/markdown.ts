@@ -5,7 +5,7 @@
  * the parser is testable; the renderer maps these blocks to native Text.
  */
 
-export type Span = { text: string; code?: true; bold?: true; italic?: true };
+export type Span = { text: string; code?: true; bold?: true; italic?: true; href?: string };
 
 export type Block =
   | { type: "paragraph"; spans: Span[] }
@@ -13,7 +13,8 @@ export type Block =
   | { type: "list"; ordered: boolean; items: Span[][] }
   | { type: "code"; text: string; lang: string | null };
 
-const INLINE = /(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)|\*\*([^*]+)\*\*|(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])|(?<![\w_])_([^_\s][^_]*?)_(?![\w_])/g;
+const INLINE =
+  /(`+)([^`]|[^`][\s\S]*?[^`])\1(?!`)|\*\*([^*]+)\*\*|(?<![\w*])\*([^*\s][^*]*?)\*(?![\w*])|(?<![\w_])_([^_\s][^_]*?)_(?![\w_])|\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)|(https?:\/\/[^\s<>()\[\]]+?)(?=[.,;:!?)]*(?:\s|$))/g;
 
 export function parseInline(text: string): Span[] {
   const spans: Span[] = [];
@@ -23,6 +24,8 @@ export function parseInline(text: string): Span[] {
     if (index > last) spans.push({ text: text.slice(last, index) });
     if (match[2] !== undefined) spans.push({ text: match[2], code: true });
     else if (match[3] !== undefined) spans.push({ text: match[3], bold: true });
+    else if (match[6] !== undefined) spans.push({ text: match[6], href: match[7] ?? "" });
+    else if (match[8] !== undefined) spans.push({ text: match[8], href: match[8] });
     else spans.push({ text: match[4] ?? match[5] ?? "", italic: true });
     last = index + match[0].length;
   }

@@ -9,8 +9,9 @@ A Paseo plugin that folds noisy user messages into compact cards.
   into the user message.
 - **Inbox card** — omp's hub delivers subagent replies into the parent as one assistant row of
   `<irc>` blocks. The card lists one collapsed row per message with the sender and a two-line
-  preview; tap to read, Copy underneath. The two delivery boilerplate lines are dropped. A reply
-  that says anything outside the blocks is left as it is.
+  preview; tap to read, Copy underneath. The two delivery boilerplate lines are dropped. When Paseo
+  merges a delivery into the reply that was streaming, the row is split: the reply's own words stay
+  in place, rendered by the plugin, and the blocks become the card.
 - **Notice card** — omp's `<system-notice>` for a finished background job becomes one line,
   "Background job X has completed · status · duration · lines", expanding to the result preview.
   The closing tags and the "full payload at agent://" pointer are dropped.
@@ -20,7 +21,7 @@ A Paseo plugin that folds noisy user messages into compact cards.
 
 Card bodies render a small markdown subset of their own, since Paseo exposes no markdown component
 to plugins: paragraphs, headings, bullet and numbered lists, fenced code, and inline code, bold and
-italic. Anything else stays literal.
+italic, plus links, which open in the browser. Anything else stays literal.
 
 Client-only. Nothing runs on the daemon and nothing is stored.
 

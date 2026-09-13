@@ -1,6 +1,6 @@
 import type { PluginHostProps } from "@getpaseo/plugin/client";
 import { useMemo } from "react";
-import { Text, View } from "react-native";
+import { Linking, Platform, Text, View } from "react-native";
 import { parseMarkdown, type Block, type Span } from "../shared/markdown";
 
 type Theme = PluginHostProps["theme"];
@@ -19,6 +19,7 @@ function useMarkdownStyles(theme: Theme, compact: boolean) {
         paddingHorizontal: 3,
       },
       bold: { fontWeight: "600" as const },
+      link: { color: theme.colors.accent, textDecorationLine: "underline" as const },
       italic: { fontStyle: "italic" as const },
       heading: (level: number) => ({
         color: theme.colors.foreground,
@@ -46,11 +47,27 @@ function useMarkdownStyles(theme: Theme, compact: boolean) {
 
 type Styles = ReturnType<typeof useMarkdownStyles>;
 
+// the plugin typechecks without the dom lib; declare only what the web branch uses
+declare const window: { open(url: string, target: string, features: string): unknown };
+
+function openLink(url: string): void {
+  if (Platform.OS === "web") {
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  void Linking.openURL(url);
+}
+
 function Spans({ spans, styles }: { spans: Span[]; styles: Styles }) {
   return (
     <>
       {spans.map((span, index) => (
-        <Text key={index} style={[span.code ? styles.code : null, span.bold ? styles.bold : null, span.italic ? styles.italic : null]}>
+        <Text
+          key={index}
+          style={[span.code ? styles.code : null, span.bold ? styles.bold : null, span.italic ? styles.italic : null, span.href ? styles.link : null]}
+          onPress={span.href ? () => openLink(span.href as string) : undefined}
+          accessibilityRole={span.href ? "link" : undefined}
+        >
           {span.text}
         </Text>
       ))}

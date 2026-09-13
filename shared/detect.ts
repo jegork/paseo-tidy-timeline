@@ -207,3 +207,39 @@ export function isSystemNoticeTrailer(rawText: string): boolean {
     .filter((line) => line !== "");
   return lines.length > 0 && lines.every((line) => NOTICE_TRAILER_LINE.test(line));
 }
+
+export type RowSegment = { kind: "prose"; text: string } | { kind: "inbox"; messages: IrcMessage[] };
+
+/**
+ * Paseo can merge a hub delivery into the assistant row that was streaming
+ * when it arrived, so the reply and the <irc> blocks share one row. This
+ * splits such a row into prose and inbox segments in order; consecutive
+ * blocks become one inbox. Null when the row has no complete block.
+ */
+export function splitIrcRow(rawText: string): RowSegment[] | null {
+  const text = stripCustomTag(rawText);
+  const segments: RowSegment[] = [];
+  let cursor = 0;
+  let messages: IrcMessage[] = [];
+  const flushInbox = () => {
+    if (messages.length > 0) segments.push({ kind: "inbox", messages });
+    messages = [];
+  };
+  for (const match of text.matchAll(IRC_BLOCK)) {
+    const index = match.index ?? 0;
+    const single = parseIrcInbox(match[0]);
+    if (single === null) return null;
+    const prose = text.slice(cursor, index).trim();
+    if (prose !== "") {
+      flushInbox();
+      segments.push({ kind: "prose", text: prose });
+    }
+    messages.push(...single.messages);
+    cursor = index + match[0].length;
+  }
+  flushInbox();
+  if (segments.length === 0) return null;
+  const tail = text.slice(cursor).trim();
+  if (tail !== "") segments.push({ kind: "prose", text: tail });
+  return segments;
+}

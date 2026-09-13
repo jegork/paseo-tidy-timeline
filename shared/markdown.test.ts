@@ -28,6 +28,18 @@ describe("parseInline", () => {
     expect(parseInline("use `` a`b `` here")).toEqual([{ text: "use " }, { text: " a`b ", code: true }, { text: " here" }]);
   });
 
+  test("turns markdown links and bare urls into link spans without eating punctuation", () => {
+    expect(parseInline("see [the card](https://hf.co/x) and https://a.ai/m/deepseek-v4-1, then https://b.io/p).")).toEqual([
+      { text: "see " },
+      { text: "the card", href: "https://hf.co/x" },
+      { text: " and " },
+      { text: "https://a.ai/m/deepseek-v4-1", href: "https://a.ai/m/deepseek-v4-1" },
+      { text: ", then " },
+      { text: "https://b.io/p", href: "https://b.io/p" },
+      { text: ")." },
+    ]);
+  });
+
   test("returns one empty span for empty input", () => {
     expect(parseInline("")).toEqual([{ text: "" }]);
   });
