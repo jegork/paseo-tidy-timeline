@@ -20,6 +20,14 @@ A Paseo plugin that folds noisy user messages into compact cards.
 
 Client-only. Nothing runs on the daemon and nothing is stored.
 
+## Install
+
+```sh
+paseo plugin add jegork/paseo-tidy-timeline
+```
+
+Requires Paseo 0.8.
+
 ## Streamed rows arrive in pieces
 
 Paseo 0.8 splits an assistant message into markdown blocks while it streams and runs transformers
@@ -29,9 +37,5 @@ card, an `<irc>` opener becomes "Message from X", trailer lines and closing tags
 notice header becomes a banner. The message paragraphs in between stay as ordinary markdown. A
 reload of the agent refetches whole rows and restores the full cards.
 
-```bash
-paseo plugin install /absolute/path/to/paseo-tidy-timeline
-```
-
-Requires Paseo 0.8. Transformers may only target user, assistant, reasoning, tool-call, todo,
+ Transformers may only target user, assistant, reasoning, tool-call, todo,
 error, and compaction rows, so omp's "mounted tool" notifications stay as they are.
