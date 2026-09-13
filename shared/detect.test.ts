@@ -104,6 +104,12 @@ describe("parseSkillBody", () => {
     });
   });
 
+  test("looks past the custom_message label paseo 0.8.0 adds", () => {
+    const text =
+      '[custom_message] [IMPORTANT: User invoked the "commit" skill; follow its instructions. Full skill below.]\n\nCommit it.';
+    expect(parseSkillBody(text)).toEqual({ name: "commit", body: "Commit it." });
+  });
+
   test("leaves a reply that quotes the marker later on alone", () => {
     expect(
       parseSkillBody('As the marker said:\n[IMPORTANT: User invoked the "x" skill; follow its instructions. Full skill below.]'),
@@ -149,6 +155,14 @@ describe("parseIrcInbox", () => {
       "SessionDepth",
     ]);
     expect(inbox?.messages[1]?.body).toBe("Additional evidence: timerPolling.ts:1-28.");
+  });
+
+  test("looks past a custom_message label before every block", () => {
+    const inbox = parseIrcInbox(`[custom_message] ${IRC_ONE}[custom_message] ${IRC_TWO}`);
+    expect(inbox?.messages.map((message) => message.from)).toEqual([
+      "ConsultationDepth",
+      "SessionDepth",
+    ]);
   });
 
   test("leaves a reply that discusses the messages alongside them alone", () => {

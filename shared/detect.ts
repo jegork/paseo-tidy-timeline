@@ -25,8 +25,16 @@ export type SkillBody = {
  * text starts with the marker, separate from the `/skill:` user bubble. The
  * marker must be the first line: a reply that merely quotes it is left alone.
  */
+// paseo 0.8.0 labels rows that omp injected as custom messages; the label is
+// presentation, not content, so every recogniser looks past it
+const CUSTOM_TAG = /^\[custom_message\]\s*/;
+
+export function stripCustomTag(text: string): string {
+  return text.replace(CUSTOM_TAG, "");
+}
+
 export function parseSkillBody(text: string): SkillBody | null {
-  const [first = "", ...rest] = text.split("\n");
+  const [first = "", ...rest] = stripCustomTag(text).split("\n");
   const marker = SKILL_MARKER.exec(first);
   if (marker === null) return null;
   return { name: marker[1] ?? "", body: rest.join("\n").trim() };
@@ -105,11 +113,11 @@ const IRC_TRAILER = [
   /^If response expected, reply via hub .*$/m,
 ];
 
-export function parseIrcInbox(text: string): IrcInbox | null {
+export function parseIrcInbox(rawText: string): IrcInbox | null {
+  // a batch carries the tag once per block, not once per row
+  const text = rawText.replace(/\[custom_message\]\s*/g, "");
   const messages: IrcMessage[] = [];
-  let consumed = "";
   for (const match of text.matchAll(IRC_BLOCK)) {
-    consumed += match[0];
     const inner = match[1] ?? "";
     const from = IRC_FROM.exec(inner);
     if (from === null) return null;
