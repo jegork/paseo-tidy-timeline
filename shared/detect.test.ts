@@ -155,8 +155,29 @@ describe("parseIrcInbox", () => {
         {
           from: "ConsultationDepth",
           body: "Best candidate: replace hidden facade-global synchronization.\nSecond line of evidence.",
+          replyTo: null,
         },
       ],
+    });
+  });
+
+  test("strips the backticks omp 18.1 puts around the sender name", () => {
+    const inbox = parseIrcInbox(IRC_ONE.replace("agent ConsultationDepth:", "agent `ConsultationDepth`:"));
+    expect(inbox?.messages[0]?.from).toBe("ConsultationDepth");
+  });
+
+  test("reads the backticked sender and reply id omp 18.1 writes", () => {
+    const text = IRC_ONE.replace(
+      "agent ConsultationDepth:",
+      "agent `GrafanaTargetsCleanup` (reply to 157e2fdb6177196e):",
+    );
+    expect(parseIrcInbox(text)?.messages[0]).toMatchObject({
+      from: "GrafanaTargetsCleanup",
+      replyTo: "157e2fdb6177196e",
+    });
+    expect(parseIrcFragment("<irc>\nIncoming IRC message from agent `X` (reply to abc):")).toEqual({
+      kind: "opener",
+      from: "X",
     });
   });
 

@@ -6,7 +6,9 @@ import { z } from "zod";
 import { Markdown } from "./markdown";
 
 export const inboxCardSchema = z.object({
-  messages: z.array(z.object({ from: z.string(), body: z.string() })),
+  messages: z.array(
+    z.object({ from: z.string(), body: z.string(), replyTo: z.string().nullable().default(null) }),
+  ),
 });
 
 type InboxCardData = z.output<typeof inboxCardSchema>;
@@ -98,6 +100,9 @@ export function InboxCard({ item, theme, layout }: PluginTimelineItemProps<Inbox
                 color={theme.colors.foregroundMuted}
               />
               <Text style={styles.from}>{message.from}</Text>
+              {message.replyTo !== null ? (
+                <Text style={styles.preview}>{`reply · ${message.replyTo.slice(0, 8)}`}</Text>
+              ) : null}
               {!expanded ? (
                 <Text style={styles.preview} numberOfLines={2}>
                   {preview(message.body)}

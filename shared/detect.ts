@@ -98,6 +98,7 @@ export function detectLongPaste(text: string): LongPaste | null {
 export type IrcMessage = {
   from: string;
   body: string;
+  replyTo: string | null;
 };
 
 export type IrcInbox = {
@@ -107,7 +108,8 @@ export type IrcInbox = {
 // omp's hub delivers subagent replies into the parent as one assistant row
 // made only of <irc> blocks, each with a sender line and delivery boilerplate
 const IRC_BLOCK = /<irc>\s*([\s\S]*?)\s*<\/irc>/g;
-const IRC_FROM = /^Incoming IRC message from agent ([^\s:]+):\s*/;
+// omp 18.1 wraps the sender in backticks and may add "(reply to <id>)"
+const IRC_FROM = /^Incoming IRC message from agent `?([^\s:`]+)`?(?:\s*\(reply to ([^)]+)\))?:\s*/;
 const IRC_TRAILER = [
   /^Sent while waiting\/working\..*$/m,
   /^If response expected, reply via hub .*$/m,
@@ -122,7 +124,7 @@ export function parseIrcInbox(rawText: string): IrcInbox | null {
     if (from === null) return null;
     let body = inner.slice(from[0].length);
     for (const trailer of IRC_TRAILER) body = body.replace(trailer, "");
-    messages.push({ from: from[1] ?? "", body: body.trim() });
+    messages.push({ from: from[1] ?? "", body: body.trim(), replyTo: from[2] ?? null });
   }
   if (messages.length === 0) return null;
   // anything outside the blocks means the model also said something; leave it
@@ -143,7 +145,7 @@ const IRC_FRAGMENT_LINES: RegExp[] = [
   /^Sent while waiting\/working\..*$/,
   /^If response expected, reply via .*$/,
 ];
-const IRC_OPENER_LINE = /^Incoming IRC message from agent `?([^\s:`]+)`?:$/;
+const IRC_OPENER_LINE = /^Incoming IRC message from agent `?([^\s:`]+)`?(?:\s*\(reply to [^)]+\))?:$/;
 
 export function parseIrcFragment(rawText: string): IrcFragment | null {
   const lines = stripCustomTag(rawText)
